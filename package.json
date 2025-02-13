@@ -13,6 +13,7 @@
     "@google/generative-ai": "^0.21.0",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
+    "chromadb": "^1.10.4",
     "env": "^0.0.2",
     "openai": "^4.84.1"
   }

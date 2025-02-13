@@ -3,24 +3,25 @@ import * as cheerio from 'cheerio';
 import https from 'https';
 import dotenv from 'dotenv';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { ChromaClient } from 'chromadb';
 
 dotenv.config();
+
+// to run a docker container- docker compose up
+// to run a docker container in background- docker compose up -d
+
+const chromaClient = new ChromaClient({path: 'http://localhost:8000'});
+chromaClient.heartbeat();
 
 
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false, // WARNING: Disables SSL certificate verification
 });
 
-
-
-
-
-
-
-
-
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// inserting into vector database
+const WEB_COLLECTION='WEB_SCAPED_DATA_COLLECTION-1';
 
 
 
@@ -71,7 +72,35 @@ async function scapeWebpage(url = '') {
         return embedding.data[0].embedding;
       }
 
+      async function ingest(url=''){
+        const {head,body,internallinks}=await scapeWebpage(url);
+        const bodyChunks=chunkText(body,2000);
+
+        const headEmbedding=await generateVectorEmbedding({text:head});
+
+
+        for (const chunk of bodyChunks){
+            const bodyEmbedding=await generateVectorEmbedding({text:chunk});
+        }
+
+      }
+
     
 }
 
 scapeWebpage('https://piyushgarg.dev').then(console.log);;
+
+
+function chunkText(text,chunkSize){
+  if(!text || chunkSize<=0){
+    return [];
+  }
+
+  const words=text.split('/\s+/');
+  const chunks=[];
+
+  for(let i=0;i<words.length;i+=chunkSize){
+    chunks.push(words.slice(i,i+chunkSize).join(' '));
+  }
+  return chunks;
+}
