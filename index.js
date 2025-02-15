@@ -72,25 +72,43 @@ async function scapeWebpage(url = '') {
         return embedding.data[0].embedding;
       }
 
+
+      async function insertIntoDB({embedding,url,body='',head}){
+        const collection=await chromaClient.getOrCreateCollection({
+          name:WEB_COLLECTION});
+
+          await collection.add({
+            embedding:[embedding],
+            metadatas:[{url,body,head}],
+          });
+      }
+
       async function ingest(url=''){
+        console.log(`Ingesting ${url}`);
         const {head,body,internallinks}=await scapeWebpage(url);
-        const bodyChunks=chunkText(body,2000);
+        const bodyChunks=chunkText(body,1000);
 
         const headEmbedding=await generateVectorEmbedding({text:head});
+
+        insertIntoDB({embedding:headEmbedding,url});
 
 
         for (const chunk of bodyChunks){
             const bodyEmbedding=await generateVectorEmbedding({text:chunk});
+            await insertIntoDB({embedding:bodyEmbedding,url,body:chunk});
         }
 
+        for(const link of internallinks){
+          const _url=`${url}${link}`;
+          await ingest(_url);
+        }
+        console.log(`Ingested success ${url}`);
       }
 
     
 }
 
-scapeWebpage('https://piyushgarg.dev').then(console.log);;
-
-
+// scapeWebpage('https://piyushgarg.dev').then(console.log);;
 function chunkText(text,chunkSize){
   if(!text || chunkSize<=0){
     return [];
@@ -104,3 +122,4 @@ function chunkText(text,chunkSize){
   }
   return chunks;
 }
+ingest('https://piyushgarg.dev');
